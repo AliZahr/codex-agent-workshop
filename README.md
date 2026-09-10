@@ -1,6 +1,6 @@
 # Agent Workshop
 
-Agent Workshop opens a local cartoon office when a new Codex task starts. The lead agent and subagents change posture and status as Codex moves through thinking, research, edits, commands, approvals, completion, failure, and interruption.
+Agent Workshop opens a miniature local conference room when a new Codex task starts. The lead agent and subagents work in parallel from stable seats around a shared table. Waiting states draw dependency routes, and a completed agent walks to the receiving agent, delivers a work packet, then returns to its place.
 
 Source: [github.com/AliZahr/codex-agent-workshop](https://github.com/AliZahr/codex-agent-workshop)
 

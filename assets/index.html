@@ -16,14 +16,13 @@
           <h1>Agent Workshop</h1>
         </div>
       </div>
-      <div class="connection" role="status">
+      <div class="connection" role="status" aria-atomic="true">
         <span id="connection-dot" class="signal"></span>
         <span id="connection-text">Connecting</span>
       </div>
     </header>
 
-    <section class="workshop" aria-label="Animated workshop showing active Codex agents">
-      <div class="wall-glow" aria-hidden="true"></div>
+    <section class="workshop" aria-label="Miniature conference room showing Codex agents working together">
       <div class="scene-header">
         <div class="project-block">
           <span class="meta-label">CURRENT PROJECT</span>
@@ -38,17 +37,37 @@
         </div>
       </div>
 
-      <div class="studio-wall" aria-hidden="true">
-        <div class="window-view"><span class="sun"></span><span class="cloud one"></span><span class="cloud two"></span></div>
-        <div class="studio-sign"><span>AGENT</span><strong>WORKSHOP</strong></div>
-        <div class="pegboard"><i></i><i></i><i></i><i></i><i></i><i></i></div>
-      </div>
+      <div id="office-stage" class="office-stage">
+        <div class="glass-wall" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
+          <i class="skyline one"></i><i class="skyline two"></i><i class="skyline three"></i>
+        </div>
+        <div class="room-sign" aria-hidden="true"><span>TEAM ROOM</span><strong>BUILD · REVIEW · SHIP</strong></div>
+        <div class="whiteboard" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
+        <div class="plant" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
 
-      <div id="floor" class="studio-floor" aria-live="polite"></div>
+        <div class="conference-table" aria-hidden="true">
+          <div class="table-screen">
+            <span>TEAM SYNC</span>
+            <strong id="table-activity">Standing by</strong>
+          </div>
+          <i class="table-light one"></i><i class="table-light two"></i><i class="table-light three"></i>
+          <span class="coffee cup-one"></span><span class="coffee cup-two"></span>
+        </div>
+
+        <div id="dependency-layer" class="dependency-layer" aria-hidden="true"></div>
+        <div id="agents-layer" class="agents-layer"></div>
+        <div id="empty-room" class="empty-room">
+          <span class="empty-chair" aria-hidden="true"></span>
+          <strong>The room is ready</strong>
+          <span>Start a task and the team will take their seats.</span>
+        </div>
+        <p id="announcement" class="sr-only" aria-live="polite" aria-atomic="true"></p>
+      </div>
 
       <div class="scene-footer">
         <span><i class="privacy-dot"></i> Lifecycle signals only · no prompts or code</span>
-        <span id="agent-count">Workshop standing by</span>
+        <span id="agent-count">Conference room standing by</span>
       </div>
     </section>
 

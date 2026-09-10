@@ -1,23 +1,37 @@
 "use strict";
 
-const floor = document.getElementById("floor");
+const stage = document.getElementById("office-stage");
+const agentsLayer = document.getElementById("agents-layer");
+const dependencyLayer = document.getElementById("dependency-layer");
+const emptyRoom = document.getElementById("empty-room");
 const project = document.getElementById("project");
 const taskState = document.getElementById("task-state");
+const tableActivity = document.getElementById("table-activity");
 const updated = document.getElementById("updated");
 const agentCount = document.getElementById("agent-count");
+const announcement = document.getElementById("announcement");
 const connectionDot = document.getElementById("connection-dot");
 const connectionText = document.getElementById("connection-text");
 
 const stateLabels = {
   idle: "Ready", thinking: "Thinking", researching: "Researching", coding: "Coding",
-  running: "Running", delegating: "Coordinating", waiting: "Waiting", working: "Working",
+  running: "Running", delegating: "Coordinating", waiting: "Waiting for input", working: "Working",
   success: "Complete", failure: "Needs attention"
 };
-
 const stateMarks = {
   idle: "○", thinking: "•••", researching: "⌕", coding: "</>", running: "↻",
   delegating: "↗", waiting: "Ⅱ", working: "◇", success: "✓", failure: "!"
 };
+const slots = [
+  { x: 50, y: 83 }, { x: 18, y: 62 }, { x: 82, y: 62 }, { x: 29, y: 24 },
+  { x: 71, y: 24 }, { x: 11, y: 36 }, { x: 89, y: 36 }, { x: 50, y: 18 }
+];
+const seatById = new Map();
+const slotById = new Map();
+const previousStates = new Map();
+let lastSignature = "";
+let connectionState = "connecting";
+let lastAgents = [];
 
 function hash(text) {
   let value = 0;
@@ -32,72 +46,180 @@ function element(tag, className, text) {
   return node;
 }
 
-function createPerson() {
-  const person = element("div", "person");
-  person.setAttribute("aria-hidden", "true");
-  person.append(element("span", "body"), element("span", "head"), element("span", "hair"), element("span", "face"), element("span", "headset"));
-  return person;
+function createCharacter() {
+  const character = element("div", "mini-agent");
+  character.setAttribute("aria-hidden", "true");
+  character.append(
+    element("span", "agent-body"), element("span", "agent-head"), element("span", "agent-hair"),
+    element("span", "agent-face"), element("span", "agent-arm left"), element("span", "agent-arm right"),
+    element("span", "headset"), element("span", "packet")
+  );
+  return character;
 }
 
-function createMonitor() {
-  const rig = element("div", "screen-rig");
-  rig.setAttribute("aria-hidden", "true");
-  const monitor = element("div", "monitor");
-  for (let index = 0; index < 4; index += 1) monitor.append(element("i", "code-line"));
-  rig.append(monitor);
-  return rig;
+function nextSlot(agentId) {
+  if (agentId === "main") return 0;
+  const used = new Set(slotById.values());
+  for (let index = 1; index < slots.length; index += 1) if (!used.has(index)) return index;
+  return 1 + (hash(agentId) % (slots.length - 1));
 }
 
-function createStation(agent) {
-  const station = element("article", `station${agent.id === "main" ? " lead" : ""}`);
-  station.dataset.state = agent.state;
-  station.style.setProperty("--agent-hue", String(agent.id === "main" ? 230 : 190 + (hash(agent.id) % 105)));
-  station.setAttribute("aria-label", `${agent.label}: ${agent.activity}`);
+function buildSeat(agent) {
+  const seat = element("article", `agent-seat${agent.id === "main" ? " lead" : ""}`);
+  const slot = nextSlot(agent.id);
+  slotById.set(agent.id, slot);
+  seat.style.setProperty("--x", slots[slot].x);
+  seat.style.setProperty("--y", slots[slot].y);
+  seat.style.setProperty("--agent-hue", String(agent.id === "main" ? 230 : 185 + (hash(agent.id) % 115)));
+  seat.dataset.agentId = agent.id;
 
-  const head = element("div", "station-head");
-  head.append(
-    element("span", "role", agent.id === "main" ? "Primary agent" : agent.label),
-    element("span", "state-chip", stateLabels[agent.state] || "Active")
-  );
-
-  const workspace = element("div", "workspace");
-  workspace.append(
-    createPerson(),
-    element("span", "state-bubble", stateMarks[agent.state] || "•"),
-    createMonitor(),
-    element("span", "desk")
-  );
-
-  const copy = element("div", "station-copy");
-  copy.append(
-    element("strong", "agent-name", agent.id === "main" ? "Lead agent" : agent.label),
-    element("span", "activity", agent.activity)
-  );
-  station.append(head, workspace, copy);
-  return station;
+  const label = element("div", "seat-label");
+  label.append(element("strong", "agent-name"), element("span", "agent-status"));
+  const bubble = element("span", "state-bubble");
+  bubble.setAttribute("aria-hidden", "true");
+  seat.append(element("span", "chair"), createCharacter(), element("span", "seat-laptop"), bubble, label);
+  agentsLayer.append(seat);
+  seatById.set(agent.id, seat);
+  return seat;
 }
 
-function renderEmpty() {
-  const empty = element("div", "empty");
-  const robot = element("span", "empty-robot");
-  robot.setAttribute("aria-hidden", "true");
-  empty.append(robot, element("strong", "", "The studio is ready"), element("span", "", "Start a Codex task and your agents will take their desks."));
-  floor.replaceChildren(empty);
+function updateSeat(agent) {
+  const seat = seatById.get(agent.id) || buildSeat(agent);
+  const stateLabel = stateLabels[agent.state] || "Active";
+  seat.dataset.state = agent.state;
+  seat.setAttribute("aria-label", `${agent.label}, ${stateLabel}: ${agent.activity}`);
+  seat.querySelector(".agent-name").textContent = agent.id === "main" ? "Lead agent" : agent.label;
+  seat.querySelector(".agent-status").textContent = `${stateLabel} · ${agent.activity}`;
+  seat.querySelector(".state-bubble").textContent = stateMarks[agent.state] || "•";
+  return seat;
+}
+
+function removeMissingAgents(ids) {
+  for (const [id, seat] of seatById) {
+    if (ids.has(id)) continue;
+    seat.remove();
+    seatById.delete(id);
+    slotById.delete(id);
+    previousStates.delete(id);
+  }
+}
+
+function addLine(fromSeat, toSeat, className = "") {
+  if (!fromSeat || !toSeat) return null;
+  const stageRect = stage.getBoundingClientRect();
+  const from = fromSeat.getBoundingClientRect();
+  const to = toSeat.getBoundingClientRect();
+  const x1 = from.left + from.width / 2 - stageRect.left;
+  const y1 = from.top + from.height / 2 - stageRect.top;
+  const x2 = to.left + to.width / 2 - stageRect.left;
+  const y2 = to.top + to.height / 2 - stageRect.top;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const line = element("span", `dependency-line ${className}`.trim());
+  line.style.left = `${x1}px`;
+  line.style.top = `${y1}px`;
+  line.style.width = `${Math.hypot(dx, dy)}px`;
+  line.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
+  dependencyLayer.append(line);
+  return line;
+}
+
+function rebuildDependencies() {
+  dependencyLayer.replaceChildren();
+  const lead = lastAgents.find((agent) => agent.id === "main");
+  const leadSeat = seatById.get("main");
+  if (!lead || !leadSeat) return;
+  if (lead.state === "waiting") {
+    for (const agent of lastAgents) {
+      if (agent.id !== "main" && agent.state !== "success" && agent.state !== "failure") addLine(seatById.get(agent.id), leadSeat);
+    }
+  }
+  for (const agent of lastAgents) {
+    if (agent.id !== "main" && agent.state === "waiting") addLine(leadSeat, seatById.get(agent.id));
+  }
+}
+
+function deliveryTarget(agent) {
+  if (agent.id !== "main") return lastAgents.find((item) => item.id === "main");
+  return lastAgents.find((item) => item.id !== "main" && item.state === "waiting") ||
+    lastAgents.find((item) => item.id !== "main" && item.state !== "success");
+}
+
+function deliver(agent) {
+  const target = deliveryTarget(agent);
+  const fromSeat = seatById.get(agent.id);
+  const toSeat = target && seatById.get(target.id);
+  if (!fromSeat || !toSeat) return;
+  const courier = fromSeat.querySelector(".mini-agent");
+  const from = courier.getBoundingClientRect();
+  const to = toSeat.querySelector(".mini-agent").getBoundingClientRect();
+  const dx = (to.left + to.width / 2 - from.left - from.width / 2) * .78;
+  const dy = (to.top + to.height / 2 - from.top - from.height / 2) * .78;
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const route = addLine(fromSeat, toSeat, "handoff");
+  courier.classList.add("carrying");
+  toSeat.classList.add("receiving");
+  announcement.textContent = `${agent.label} completed work and delivered it to ${target.label}.`;
+
+  if (reduced || !courier.animate) {
+    window.setTimeout(() => {
+      courier.classList.remove("carrying");
+      toSeat.classList.remove("receiving");
+      if (route) route.remove();
+    }, 900);
+    return;
+  }
+  const motion = courier.animate([
+    { transform: "translate(0, 0) scale(1)", offset: 0 },
+    { transform: `translate(${dx * .25}px, ${dy * .25}px) scale(1.04)`, offset: .16 },
+    { transform: `translate(${dx}px, ${dy}px) scale(1.04)`, offset: .42 },
+    { transform: `translate(${dx}px, ${dy}px) scale(1.04)`, offset: .58 },
+    { transform: `translate(${dx * .25}px, ${dy * .25}px) scale(1.02)`, offset: .84 },
+    { transform: "translate(0, 0) scale(1)", offset: 1 }
+  ], { duration: 4800, easing: "ease-in-out" });
+  motion.onfinish = () => {
+    courier.classList.remove("carrying");
+    toSeat.classList.remove("receiving");
+    if (route) route.remove();
+  };
 }
 
 function render(state) {
-  project.textContent = state.project_label || "Codex task";
-  updated.textContent = state.updated_at ? `Updated ${new Date(state.updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "No events yet";
   const agents = Array.isArray(state.agents) ? state.agents : [];
+  const signature = JSON.stringify({ project: state.project_label, active: state.active, agents: agents.map(({ id, label, state: status, activity }) => [id, label, status, activity]) });
+  updated.textContent = state.updated_at ? `Updated ${new Date(state.updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "No events yet";
+  if (signature === lastSignature) return;
+  lastSignature = signature;
+  lastAgents = agents;
+  project.textContent = state.project_label || "Codex task";
   const lead = agents.find((agent) => agent.id === "main");
-  taskState.textContent = lead ? lead.activity : (state.active ? "Task active" : "Ready for work");
-  agentCount.textContent = agents.length ? `${agents.length} agent${agents.length === 1 ? "" : "s"} in the studio` : "Workshop standing by";
+  const activity = lead ? lead.activity : (state.active ? "Task active" : "Ready for work");
+  taskState.textContent = activity;
+  tableActivity.textContent = activity;
+  agentCount.textContent = agents.length ? `${agents.length} agent${agents.length === 1 ? "" : "s"} in the room` : "Conference room standing by";
+  emptyRoom.hidden = agents.length > 0;
 
-  if (!agents.length) {
-    renderEmpty();
-    return;
+  const ids = new Set(agents.map((agent) => agent.id));
+  removeMissingAgents(ids);
+  const deliveries = [];
+  for (const agent of agents) {
+    const previous = previousStates.get(agent.id);
+    updateSeat(agent);
+    if (previous && previous !== "success" && agent.state === "success") deliveries.push(agent);
+    previousStates.set(agent.id, agent.state);
   }
-  floor.replaceChildren(...agents.map(createStation));
+  announcement.textContent = agents.length ? `${agents.length} agents active. ${activity}.` : "The conference room is ready.";
+  window.requestAnimationFrame(() => {
+    rebuildDependencies();
+    deliveries.forEach((agent, index) => window.setTimeout(() => deliver(agent), index * 350));
+  });
+}
+
+function setConnection(next) {
+  if (connectionState === next) return;
+  connectionState = next;
+  connectionDot.className = `signal ${next}`;
+  connectionText.textContent = next === "online" ? "Live · local" : "Reconnecting";
 }
 
 async function refresh() {
@@ -105,13 +227,16 @@ async function refresh() {
     const response = await fetch("/api/state", { cache: "no-store" });
     if (!response.ok) throw new Error("offline");
     render(await response.json());
-    connectionDot.className = "signal online";
-    connectionText.textContent = "Live · local";
+    setConnection("online");
   } catch {
-    connectionDot.className = "signal offline";
-    connectionText.textContent = "Reconnecting";
+    setConnection("offline");
   }
 }
 
+let resizeTimer;
+window.addEventListener("resize", () => {
+  window.clearTimeout(resizeTimer);
+  resizeTimer = window.setTimeout(rebuildDependencies, 120);
+});
 refresh();
 setInterval(refresh, 700);
