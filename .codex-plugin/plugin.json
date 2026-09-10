@@ -1,6 +1,6 @@
 {
   "name": "agent-workshop",
-  "version": "0.1.0+codex.20260910211632",
+  "version": "0.1.0+codex.20260910214914",
   "description": "A private local cartoon workshop that mirrors Codex task and subagent lifecycle states.",
   "author": {
     "name": "Ali Zahr",
@@ -19,7 +19,7 @@
   "interface": {
     "displayName": "Agent Workshop",
     "shortDescription": "Watch Codex agents work as cartoon characters.",
-    "longDescription": "Opens a loopback-only cartoon workshop when a Codex task starts and reflects coarse lifecycle states without reading prompts, commands, code, tool output, or transcripts.",
+    "longDescription": "Runs a Codex-native styled, loopback-only agent studio that reflects coarse lifecycle states without reading prompts, commands, code, tool output, or transcripts.",
     "developerName": "Ali Zahr",
     "category": "Productivity",
     "capabilities": [

@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -115,34 +114,11 @@ def ensure_server(event: dict) -> None:
             return
 
 
-def open_once(session_id: str) -> None:
-    if sys.platform != "darwin":
-        return
-    seen = PLUGIN_DATA / "opened"
-    seen.mkdir(parents=True, exist_ok=True)
-    marker = seen / hashlib.sha256(session_id.encode("utf-8")).hexdigest()
-    try:
-        fd = os.open(marker, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-        os.close(fd)
-    except FileExistsError:
-        return
-    subprocess.Popen(
-        ["open", BASE_URL],
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        start_new_session=True,
-        close_fds=True,
-    )
-
-
 def main() -> int:
     try:
         payload = json.load(sys.stdin)
         event = normalize(payload if isinstance(payload, dict) else {})
         ensure_server(event)
-        if event["event"] == "UserPromptSubmit":
-            open_once(event["session_id"])
     except Exception:
         # Visualization must never block or alter the Codex task.
         return 0

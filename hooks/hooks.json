@@ -23,7 +23,7 @@
             "command": "/usr/bin/python3 \"$PLUGIN_ROOT/scripts/workshop_hook.py\"",
             "async": true,
             "timeout": 3,
-            "statusMessage": "Opening Agent Workshop"
+            "statusMessage": "Updating Agent Workshop"
           }
         ]
       }

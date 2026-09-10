@@ -1,6 +1,8 @@
 # Agent Workshop
 
-Agent Workshop opens a miniature local conference room when a new Codex task starts. The lead agent and subagents work in parallel from stable seats around a shared table. Waiting states draw dependency routes, and a completed agent walks to the receiving agent, delivers a work packet, then returns to its place.
+Agent Workshop is a miniature local conference room for Codex. The lead agent and subagents work in parallel from stable seats around a shared table. Waiting states draw dependency routes, and a completed agent walks to the receiving agent, delivers a work packet, then returns to its place.
+
+The interface is designed as a native-feeling Codex companion: edge-to-edge system styling, a live activity rail, a room focus mode, dark/light appearance support, and responsive layouts for narrow panels.
 
 Source: [github.com/AliZahr/codex-agent-workshop](https://github.com/AliZahr/codex-agent-workshop)
 
@@ -28,4 +30,4 @@ Run tests:
 python3 -m unittest discover -s tests -v
 ```
 
-After installation, start a new Codex task and review/trust the plugin hooks when Codex asks. On macOS, the workshop opens once per new task in the default browser.
+After installation, start a new Codex task and review/trust the plugin hooks when Codex asks. Keep http://127.0.0.1:8765 open in Codex's built-in browser to watch it update. The plugin deliberately does not launch an external browser.

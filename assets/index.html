@@ -3,76 +3,81 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111318">
   <title>Agent Workshop</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <main class="app-shell">
-    <header class="topbar">
-      <div class="brand">
+    <header class="native-toolbar">
+      <div class="title-group">
         <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-        <div>
-          <p class="eyebrow">LIVE CODEX STUDIO</p>
+        <div class="title-copy">
           <h1>Agent Workshop</h1>
+          <span id="project">Waiting for a Codex task</span>
         </div>
       </div>
-      <div class="connection" role="status" aria-atomic="true">
-        <span id="connection-dot" class="signal"></span>
-        <span id="connection-text">Connecting</span>
+      <div class="toolbar-actions">
+        <button id="focus-toggle" class="icon-button" type="button" aria-pressed="false" title="Focus on the room">
+          <span aria-hidden="true">⌗</span><span class="button-label">Focus</span>
+        </button>
+        <div class="connection" role="status" aria-atomic="true">
+          <span id="connection-dot" class="signal"></span>
+          <span id="connection-text">Connecting</span>
+        </div>
       </div>
     </header>
 
-    <section class="workshop" aria-label="Miniature conference room showing Codex agents working together">
-      <div class="scene-header">
-        <div class="project-block">
-          <span class="meta-label">CURRENT PROJECT</span>
-          <strong id="project">Waiting for a Codex task</strong>
-        </div>
-        <div class="now-block">
-          <span class="now-pulse" aria-hidden="true"></span>
-          <div>
-            <span class="meta-label">HAPPENING NOW</span>
-            <strong id="task-state">Ready for work</strong>
+    <section class="content-grid" aria-label="Live Codex agent activity">
+      <section class="workshop" aria-label="Miniature conference room showing Codex agents working together">
+        <div class="scene-header">
+          <div class="now-block">
+            <span class="now-pulse" aria-hidden="true"></span>
+            <div><span class="meta-label">NOW</span><strong id="task-state">Ready for work</strong></div>
           </div>
+          <span id="agent-count" class="agent-count">Room ready</span>
         </div>
-      </div>
-
-      <div id="office-stage" class="office-stage">
-        <div class="glass-wall" aria-hidden="true">
-          <span></span><span></span><span></span><span></span>
-          <i class="skyline one"></i><i class="skyline two"></i><i class="skyline three"></i>
-        </div>
-        <div class="room-sign" aria-hidden="true"><span>TEAM ROOM</span><strong>BUILD · REVIEW · SHIP</strong></div>
-        <div class="whiteboard" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
-        <div class="plant" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
-
-        <div class="conference-table" aria-hidden="true">
-          <div class="table-screen">
-            <span>TEAM SYNC</span>
-            <strong id="table-activity">Standing by</strong>
+        <div id="office-stage" class="office-stage">
+          <div class="glass-wall" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+            <i class="skyline one"></i><i class="skyline two"></i><i class="skyline three"></i>
           </div>
-          <i class="table-light one"></i><i class="table-light two"></i><i class="table-light three"></i>
-          <span class="coffee cup-one"></span><span class="coffee cup-two"></span>
+          <div class="room-sign" aria-hidden="true"><span>AGENT STUDIO</span><strong>BUILD · REVIEW · SHIP</strong></div>
+          <div class="whiteboard" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
+          <div class="plant" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
+          <div class="conference-table" aria-hidden="true">
+            <div class="table-screen"><span>LIVE TASK</span><strong id="table-activity">Standing by</strong></div>
+            <i class="table-light one"></i><i class="table-light two"></i><i class="table-light three"></i>
+            <span class="coffee cup-one"></span><span class="coffee cup-two"></span>
+          </div>
+          <div id="dependency-layer" class="dependency-layer" aria-hidden="true"></div>
+          <div id="agents-layer" class="agents-layer"></div>
+          <div id="empty-room" class="empty-room">
+            <span class="empty-chair" aria-hidden="true"></span>
+            <strong>The room is ready</strong>
+            <span>Start a Codex task and the team will take their seats.</span>
+          </div>
+          <p id="announcement" class="sr-only" aria-live="polite" aria-atomic="true"></p>
         </div>
+      </section>
 
-        <div id="dependency-layer" class="dependency-layer" aria-hidden="true"></div>
-        <div id="agents-layer" class="agents-layer"></div>
-        <div id="empty-room" class="empty-room">
-          <span class="empty-chair" aria-hidden="true"></span>
-          <strong>The room is ready</strong>
-          <span>Start a task and the team will take their seats.</span>
+      <aside class="activity-panel" aria-label="Agent activity">
+        <div class="panel-heading">
+          <div><span class="meta-label">TEAM</span><h2>Live activity</h2></div>
+          <span id="active-total" class="count-badge">0</span>
         </div>
-        <p id="announcement" class="sr-only" aria-live="polite" aria-atomic="true"></p>
-      </div>
-
-      <div class="scene-footer">
-        <span><i class="privacy-dot"></i> Lifecycle signals only · no prompts or code</span>
-        <span id="agent-count">Conference room standing by</span>
-      </div>
+        <div id="activity-list" class="activity-list">
+          <div class="activity-empty"><span aria-hidden="true">◎</span><p>Agents will appear here as they join.</p></div>
+        </div>
+        <div class="privacy-card">
+          <span class="privacy-icon" aria-hidden="true">✓</span>
+          <div><strong>Local and private</strong><span>Lifecycle signals only. No prompts, code, or output.</span></div>
+        </div>
+      </aside>
     </section>
 
-    <footer class="app-footer">
-      <span>Private · local · real time</span>
+    <footer class="statusbar">
+      <span><i class="privacy-dot"></i> Agent Workshop</span>
       <span id="updated">No events yet</span>
     </footer>
   </main>

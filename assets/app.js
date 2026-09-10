@@ -12,6 +12,9 @@ const agentCount = document.getElementById("agent-count");
 const announcement = document.getElementById("announcement");
 const connectionDot = document.getElementById("connection-dot");
 const connectionText = document.getElementById("connection-text");
+const activityList = document.getElementById("activity-list");
+const activeTotal = document.getElementById("active-total");
+const focusToggle = document.getElementById("focus-toggle");
 
 const stateLabels = {
   idle: "Ready", thinking: "Thinking", researching: "Researching", coding: "Coding",
@@ -92,6 +95,34 @@ function updateSeat(agent) {
   seat.querySelector(".agent-status").textContent = `${stateLabel} · ${agent.activity}`;
   seat.querySelector(".state-bubble").textContent = stateMarks[agent.state] || "•";
   return seat;
+}
+
+function renderActivityList(agents) {
+  activeTotal.textContent = String(agents.length);
+  if (!agents.length) {
+    activityList.replaceChildren();
+    const empty = element("div", "activity-empty");
+    const icon = element("span", "", "◎");
+    icon.setAttribute("aria-hidden", "true");
+    empty.append(icon, element("p", "", "Agents will appear here as they join."));
+    activityList.append(empty);
+    return;
+  }
+
+  const rows = agents.map((agent) => {
+    const row = element("article", "activity-row");
+    row.dataset.state = agent.state;
+    const dot = element("span", "row-dot");
+    dot.setAttribute("aria-hidden", "true");
+    const copy = element("div", "row-copy");
+    copy.append(
+      element("strong", "", agent.id === "main" ? "Lead agent" : agent.label),
+      element("span", "", agent.activity)
+    );
+    row.append(dot, copy, element("span", "row-state", stateLabels[agent.state] || "Active"));
+    return row;
+  });
+  activityList.replaceChildren(...rows);
 }
 
 function removeMissingAgents(ids) {
@@ -196,8 +227,9 @@ function render(state) {
   const activity = lead ? lead.activity : (state.active ? "Task active" : "Ready for work");
   taskState.textContent = activity;
   tableActivity.textContent = activity;
-  agentCount.textContent = agents.length ? `${agents.length} agent${agents.length === 1 ? "" : "s"} in the room` : "Conference room standing by";
+  agentCount.textContent = agents.length ? `${agents.length} agent${agents.length === 1 ? "" : "s"} active` : "Room ready";
   emptyRoom.hidden = agents.length > 0;
+  renderActivityList(agents);
 
   const ids = new Set(agents.map((agent) => agent.id));
   removeMissingAgents(ids);
@@ -237,6 +269,13 @@ let resizeTimer;
 window.addEventListener("resize", () => {
   window.clearTimeout(resizeTimer);
   resizeTimer = window.setTimeout(rebuildDependencies, 120);
+});
+focusToggle.addEventListener("click", () => {
+  const focused = document.body.classList.toggle("focus-mode");
+  focusToggle.setAttribute("aria-pressed", String(focused));
+  focusToggle.querySelector(".button-label").textContent = focused ? "Team" : "Focus";
+  focusToggle.title = focused ? "Show team activity" : "Focus on the room";
+  window.requestAnimationFrame(rebuildDependencies);
 });
 refresh();
 setInterval(refresh, 700);

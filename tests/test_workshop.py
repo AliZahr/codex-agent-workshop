@@ -1,6 +1,8 @@
 import importlib.util
+import io
 import pathlib
 import unittest
+from unittest import mock
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -38,6 +40,14 @@ class HookTests(unittest.TestCase):
         self.assertEqual(hook.classify_tool("Bash")[0], "running")
         self.assertEqual(hook.classify_tool("mcp__docs__search")[0], "researching")
         self.assertEqual(hook.classify_tool("spawn_agent")[0], "delegating")
+
+    def test_prompt_event_does_not_launch_external_browser(self):
+        payload = io.StringIO('{"hook_event_name":"UserPromptSubmit","session_id":"s1"}')
+        with mock.patch.object(hook.sys, "stdin", payload), \
+             mock.patch.object(hook, "ensure_server"), \
+             mock.patch.object(hook.subprocess, "Popen") as popen:
+            self.assertEqual(hook.main(), 0)
+        popen.assert_not_called()
 
 
 class StateTests(unittest.TestCase):
