@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Workshop</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <p class="eyebrow">CODEX ACTIVITY</p>
+        <h1>Agent Workshop</h1>
+        <p id="project">Waiting for a Codex task</p>
+      </div>
+      <div class="connection"><span id="connection-dot"></span><span id="connection-text">Connecting</span></div>
+    </header>
+
+    <section class="workshop" aria-label="Cartoon workshop showing active Codex agents">
+      <div class="window"><span></span><span></span><span></span></div>
+      <div class="noticeboard"><strong>TASK BOARD</strong><span id="task-state">Ready for work</span></div>
+      <div class="plant" aria-hidden="true">🌿</div>
+      <div class="clock" aria-hidden="true">🕘</div>
+      <div id="floor" class="floor" aria-live="polite"></div>
+    </section>
+
+    <footer>
+      <span>Local-only lifecycle view</span>
+      <span id="updated">No events yet</span>
+    </footer>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
