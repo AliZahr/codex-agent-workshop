@@ -1,6 +1,6 @@
 {
   "name": "agent-workshop",
-  "version": "0.1.0+codex.20260910205109",
+  "version": "0.1.0+codex.20260910210316",
   "description": "A private local cartoon workshop that mirrors Codex task and subagent lifecycle states.",
   "author": {
     "name": "Ali Zahr",

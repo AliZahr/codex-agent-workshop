@@ -7,26 +7,53 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <main>
-    <header>
-      <div>
-        <p class="eyebrow">CODEX ACTIVITY</p>
-        <h1>Agent Workshop</h1>
-        <p id="project">Waiting for a Codex task</p>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <div>
+          <p class="eyebrow">LIVE CODEX STUDIO</p>
+          <h1>Agent Workshop</h1>
+        </div>
       </div>
-      <div class="connection"><span id="connection-dot"></span><span id="connection-text">Connecting</span></div>
+      <div class="connection" role="status">
+        <span id="connection-dot" class="signal"></span>
+        <span id="connection-text">Connecting</span>
+      </div>
     </header>
 
-    <section class="workshop" aria-label="Cartoon workshop showing active Codex agents">
-      <div class="window"><span></span><span></span><span></span></div>
-      <div class="noticeboard"><strong>TASK BOARD</strong><span id="task-state">Ready for work</span></div>
-      <div class="plant" aria-hidden="true">🌿</div>
-      <div class="clock" aria-hidden="true">🕘</div>
-      <div id="floor" class="floor" aria-live="polite"></div>
+    <section class="workshop" aria-label="Animated workshop showing active Codex agents">
+      <div class="wall-glow" aria-hidden="true"></div>
+      <div class="scene-header">
+        <div class="project-block">
+          <span class="meta-label">CURRENT PROJECT</span>
+          <strong id="project">Waiting for a Codex task</strong>
+        </div>
+        <div class="now-block">
+          <span class="now-pulse" aria-hidden="true"></span>
+          <div>
+            <span class="meta-label">HAPPENING NOW</span>
+            <strong id="task-state">Ready for work</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="studio-wall" aria-hidden="true">
+        <div class="window-view"><span class="sun"></span><span class="cloud one"></span><span class="cloud two"></span></div>
+        <div class="studio-sign"><span>AGENT</span><strong>WORKSHOP</strong></div>
+        <div class="pegboard"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+
+      <div id="floor" class="studio-floor" aria-live="polite"></div>
+
+      <div class="scene-footer">
+        <span><i class="privacy-dot"></i> Lifecycle signals only · no prompts or code</span>
+        <span id="agent-count">Workshop standing by</span>
+      </div>
     </section>
 
-    <footer>
-      <span>Local-only lifecycle view</span>
+    <footer class="app-footer">
+      <span>Private · local · real time</span>
       <span id="updated">No events yet</span>
     </footer>
   </main>
