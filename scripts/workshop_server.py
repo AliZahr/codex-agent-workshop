@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "assets"
 LOCK = threading.RLock()
 MAX_SESSIONS = 12
+MAX_HISTORY = 40
 STATE = {"sessions": {}, "updated_at": 0}
 ALLOWED_STATES = {"idle", "thinking", "researching", "coding", "running", "delegating", "waiting", "working", "success", "failure"}
 
@@ -30,6 +31,7 @@ def new_session(session_id: str, event: dict, occurred_at: int) -> dict:
         "turn_id": str(event.get("turn_id") or "")[:200],
         "updated_at": occurred_at,
         "agents": {},
+        "history": [],
         "pending_assignments": [],
     }
 
@@ -68,8 +70,35 @@ def attach_or_queue_assignment(session: dict, assignment: dict) -> None:
         agent["activity"] = assignment["detail"]
         agent["awaiting_assignment"] = False
         return
+    history_candidates = [
+        item for item in session["history"]
+        if item.get("awaiting_assignment")
+        and (not expected or str(item.get("agent_type") or "").lower() == expected)
+    ]
+    if history_candidates:
+        item = max(history_candidates, key=lambda value: int(value["completed_at"]))
+        item["label"] = assignment["task_name"] or item["label"]
+        item["activity"] = assignment["detail"]
+        item["awaiting_assignment"] = False
+        return
     session["pending_assignments"].append(assignment)
     session["pending_assignments"] = session["pending_assignments"][-16:]
+
+
+def archive_agent(session: dict, agent_id: str, event: dict, occurred_at: int) -> None:
+    previous = session["agents"].pop(agent_id, None)
+    if previous is None:
+        return
+    session["history"].append({
+        "id": f"{agent_id}:{occurred_at}",
+        "agent_id": agent_id,
+        "label": previous.get("label") or event.get("agent_type") or "Agent",
+        "agent_type": previous.get("agent_type") or event.get("agent_type") or "Agent",
+        "activity": previous.get("activity") or "Completed delegated work",
+        "completed_at": occurred_at,
+        "awaiting_assignment": bool(previous.get("awaiting_assignment")),
+    })
+    session["history"] = session["history"][-MAX_HISTORY:]
 
 
 def apply_event(event: dict) -> bool:
@@ -107,7 +136,9 @@ def apply_event(event: dict) -> bool:
             if agent_id == "main":
                 session["active"] = False
             else:
-                session["agents"].pop(agent_id, None)
+                archive_agent(session, agent_id, event, occurred_at)
+        elif event.get("event") == "SubagentStop" and agent_id != "main":
+            archive_agent(session, agent_id, event, occurred_at)
         else:
             previous = session["agents"].get(agent_id, {})
             if occurred_at >= int(previous.get("occurred_at", 0)):
@@ -168,6 +199,17 @@ def public_state() -> dict:
                     "occurred_at": agent["occurred_at"],
                 }
                 for agent in session["agents"].values()
+            ],
+            "history": [
+                {
+                    "id": item["id"],
+                    "agent_id": item["agent_id"],
+                    "label": item["label"],
+                    "agent_type": item["agent_type"],
+                    "activity": item["activity"],
+                    "completed_at": item["completed_at"],
+                }
+                for item in reversed(session["history"])
             ],
         })
     return {

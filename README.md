@@ -2,9 +2,9 @@
 
 Agent Workshop is a miniature local conference room for Codex. The lead agent and subagents work in parallel from stable seats around a shared table. Waiting states draw dependency routes, and a completed agent walks to the receiving agent, delivers a work packet, then returns to its place.
 
-The interface is designed as a native-feeling Codex companion: edge-to-edge system styling, a live activity rail, a room focus mode, dark/light appearance support, and responsive layouts for narrow panels.
+The interface is designed as a native-feeling Codex companion: edge-to-edge system styling, a live activity rail, a room focus mode, dark/light appearance support, and responsive layouts for narrow panels. Ask Codex to “open Agent Workshop” to place it in a Codex browser panel instead of an external browser.
 
-Concurrent working Codex chats are kept as separate studios. Use the task switcher to move between them; a studio disappears when its turn finishes and returns if that chat starts working again. Each studio shows a short title derived locally from its first prompt. Click a miniature character or an activity row to inspect the fuller, locally sanitized detail of what that agent is doing.
+Concurrent working Codex chats are kept as separate studios. Use the task switcher to move between them; a studio disappears when its turn finishes and returns if that chat starts working again. Each studio shows a short title derived locally from its first prompt. Click a miniature character or an activity row to inspect the fuller, locally sanitized detail of what that agent is doing. Finished subagents deliver their work, leave the table, and remain in the task's Work log.
 
 Source: [github.com/AliZahr/codex-agent-workshop](https://github.com/AliZahr/codex-agent-workshop)
 

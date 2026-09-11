@@ -162,6 +162,44 @@ class StateTests(unittest.TestCase):
         self.assertEqual(agent["label"], "Session mapper")
         self.assertEqual(agent["activity"], "Map concurrent session behavior")
 
+    def test_finished_agent_leaves_table_and_is_kept_in_history(self):
+        server.apply_event(self.base_event())
+        server.apply_event(self.base_event(
+            agent_id="agent-2", agent_type="explorer", task_title="", state="working",
+            activity="joining", event="SubagentStart", occurred_at=2,
+        ))
+        server.apply_event(self.base_event(
+            state="delegating", activity="delegating", event="PreToolUse", occurred_at=3,
+            assignment={"task_name": "UX researcher", "agent_type": "explorer", "detail": "Study the room experience"},
+        ))
+        server.apply_event(self.base_event(
+            agent_id="agent-2", agent_type="explorer", task_title="", state="success",
+            activity="finished", event="SubagentStop", occurred_at=4,
+        ))
+
+        session = server.public_state()["sessions"][0]
+        self.assertEqual([agent["id"] for agent in session["agents"]], ["main"])
+        self.assertEqual(session["history"][0]["label"], "UX researcher")
+        self.assertEqual(session["history"][0]["activity"], "Study the room experience")
+
+    def test_late_assignment_updates_finished_agent_history(self):
+        server.apply_event(self.base_event())
+        server.apply_event(self.base_event(
+            agent_id="agent-2", agent_type="explorer", task_title="", state="working",
+            activity="joining", event="SubagentStart", occurred_at=2,
+        ))
+        server.apply_event(self.base_event(
+            agent_id="agent-2", agent_type="explorer", task_title="", state="success",
+            activity="finished", event="SubagentStop", occurred_at=3,
+        ))
+        server.apply_event(self.base_event(
+            state="delegating", activity="delegating", event="PreToolUse", occurred_at=1,
+            assignment={"task_name": "Late mapper", "agent_type": "explorer", "detail": "Map delayed events"},
+        ))
+        history = server.public_state()["sessions"][0]["history"]
+        self.assertEqual(history[0]["label"], "Late mapper")
+        self.assertEqual(history[0]["activity"], "Map delayed events")
+
     def test_public_state_is_sorted_by_recent_activity(self):
         server.apply_event(self.base_event())
         server.apply_event(self.base_event(session_id="two", occurred_at=5))

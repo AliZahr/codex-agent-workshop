@@ -1,6 +1,6 @@
 {
   "name": "agent-workshop",
-  "version": "0.1.0+codex.20260911090536",
+  "version": "0.1.0+codex.20260911112606",
   "description": "A private local studio for tracking concurrent Codex tasks and detailed agent activity.",
   "author": {
     "name": "Ali Zahr",
@@ -16,6 +16,7 @@
     "privacy",
     "workshop"
   ],
+  "skills": "./skills/",
   "interface": {
     "displayName": "Agent Workshop",
     "shortDescription": "Watch concurrent Codex tasks and agents work.",

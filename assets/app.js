@@ -25,6 +25,11 @@ const inspectorState = document.getElementById("inspector-state");
 const inspectorTask = document.getElementById("inspector-task");
 const inspectorActivity = document.getElementById("inspector-activity");
 const inspectorProject = document.getElementById("inspector-project");
+const inspectorKicker = document.getElementById("inspector-kicker");
+const historySection = document.getElementById("history-section");
+const historyList = document.getElementById("history-list");
+const historyTotal = document.getElementById("history-total");
+const studioClock = document.getElementById("studio-clock");
 
 const stateLabels = {
   idle: "Ready", thinking: "Thinking", researching: "Researching", coding: "Coding",
@@ -47,7 +52,7 @@ let connectionState = "connecting";
 let lastAgents = [];
 let lastSessions = [];
 let selectedSessionId = null;
-let inspectedAgentId = null;
+let inspectedRecord = null;
 
 function hash(text) {
   let value = 0;
@@ -97,6 +102,8 @@ function buildSeat(agent) {
   bubble.setAttribute("aria-hidden", "true");
   seat.append(element("span", "chair"), createCharacter(), element("span", "seat-laptop"), bubble, label);
   agentsLayer.append(seat);
+  seat.classList.add("arriving");
+  window.setTimeout(() => seat.classList.remove("arriving"), 850);
   seatById.set(agent.id, seat);
   return seat;
 }
@@ -144,29 +151,59 @@ function renderActivityList(agents) {
   activityList.replaceChildren(...rows);
 }
 
+function formatCompletedTime(value) {
+  return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function renderHistoryList(history) {
+  historyTotal.textContent = String(history.length);
+  historySection.hidden = history.length === 0;
+  const rows = history.map((item) => {
+    const row = element("button", "history-row");
+    row.type = "button";
+    row.setAttribute("aria-label", `Show completed work by ${item.label}`);
+    row.addEventListener("click", () => openHistoryDetails(item.id));
+    const avatar = element("span", "history-avatar", "✓");
+    const copy = element("span", "history-copy");
+    copy.append(element("strong", "", item.label), element("span", "", item.activity));
+    row.append(avatar, copy, element("time", "", formatCompletedTime(item.completed_at)));
+    return row;
+  });
+  historyList.replaceChildren(...rows);
+}
+
 function selectedSession() {
   return lastSessions.find((item) => item.id === selectedSessionId) || null;
 }
 
 function updateAgentInspector() {
-  if (!inspectedAgentId) return;
+  if (!inspectedRecord) return;
   const session = selectedSession();
-  const agent = session && session.agents.find((item) => item.id === inspectedAgentId);
+  const records = session && (inspectedRecord.kind === "history" ? session.history : session.agents);
+  const agent = records && records.find((item) => item.id === inspectedRecord.id);
   if (!session || !agent) {
-    inspectedAgentId = null;
+    inspectedRecord = null;
     if (agentInspector.open) agentInspector.close();
     return;
   }
   inspectorName.textContent = agent.id === "main" ? "Lead agent" : agent.label;
-  inspectorState.textContent = stateLabels[agent.state] || "Active";
-  inspectorState.dataset.state = agent.state;
+  const completed = inspectedRecord.kind === "history";
+  inspectorKicker.textContent = completed ? "COMPLETED WORK" : "CURRENT ASSIGNMENT";
+  inspectorState.textContent = completed ? `Delivered ${formatCompletedTime(agent.completed_at)}` : (stateLabels[agent.state] || "Active");
+  inspectorState.dataset.state = completed ? "success" : agent.state;
   inspectorTask.textContent = session.title || session.project_label || "Codex task";
   inspectorActivity.textContent = agent.activity || "Working on the current task.";
   inspectorProject.textContent = session.project_label || "Codex";
 }
 
 function openAgentDetails(agentId) {
-  inspectedAgentId = agentId;
+  inspectedRecord = { kind: "active", id: agentId };
+  updateAgentInspector();
+  if (!agentInspector.open) agentInspector.showModal();
+}
+
+function openHistoryDetails(historyId) {
+  inspectedRecord = { kind: "history", id: historyId };
   updateAgentInspector();
   if (!agentInspector.open) agentInspector.showModal();
 }
@@ -180,7 +217,7 @@ function resetRoom() {
   lastAgents = [];
   lastSignature = "";
   if (agentInspector.open) agentInspector.close();
-  inspectedAgentId = null;
+  inspectedRecord = null;
 }
 
 function selectSession(sessionId) {
@@ -225,10 +262,30 @@ function renderTaskList(sessions) {
 function removeMissingAgents(ids) {
   for (const [id, seat] of seatById) {
     if (ids.has(id)) continue;
-    seat.remove();
     seatById.delete(id);
     slotById.delete(id);
     previousStates.delete(id);
+    const courier = seat.querySelector(".mini-agent");
+    const leadSeat = seatById.get("main");
+    const from = courier.getBoundingClientRect();
+    const lead = leadSeat && leadSeat.querySelector(".mini-agent").getBoundingClientRect();
+    const stageRect = stage.getBoundingClientRect();
+    const toLeadX = lead ? lead.left + lead.width / 2 - from.left - from.width / 2 : 0;
+    const toLeadY = lead ? lead.top + lead.height / 2 - from.top - from.height / 2 : 0;
+    const exitX = stageRect.right - from.left + 40;
+    const exitY = stageRect.bottom - from.top - 70;
+    seat.classList.add("departing");
+    courier.classList.add("carrying");
+    if (courier.animate && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      courier.animate([
+        { transform: "translate(0, 0)" },
+        { transform: `translate(${toLeadX}px, ${toLeadY}px)`, offset: .42 },
+        { transform: `translate(${toLeadX}px, ${toLeadY}px)`, offset: .55 },
+        { transform: `translate(${exitX}px, ${exitY}px)`, opacity: 0 }
+      ], { duration: 2400, easing: "ease-in-out", fill: "forwards" }).onfinish = () => seat.remove();
+    } else {
+      window.setTimeout(() => seat.remove(), 650);
+    }
   }
 }
 
@@ -314,7 +371,8 @@ function deliver(agent) {
 
 function render(state) {
   const agents = Array.isArray(state.agents) ? state.agents : [];
-  const signature = JSON.stringify({ id: state.id, title: state.title, project: state.project_label, active: state.active, agents: agents.map(({ id, label, state: status, activity }) => [id, label, status, activity]) });
+  const history = Array.isArray(state.history) ? state.history : [];
+  const signature = JSON.stringify({ id: state.id, title: state.title, project: state.project_label, active: state.active, agents: agents.map(({ id, label, state: status, activity }) => [id, label, status, activity]), history: history.map(({ id, activity }) => [id, activity]) });
   updated.textContent = state.updated_at ? `Updated ${new Date(state.updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "No events yet";
   if (signature === lastSignature) return;
   lastSignature = signature;
@@ -328,6 +386,7 @@ function render(state) {
   agentCount.textContent = agents.length ? `${agents.length} agent${agents.length === 1 ? "" : "s"} active` : "Room ready";
   emptyRoom.hidden = agents.length > 0;
   renderActivityList(agents);
+  renderHistoryList(history);
   updateAgentInspector();
 
   const ids = new Set(agents.map((agent) => agent.id));
@@ -339,7 +398,7 @@ function render(state) {
     if (previous && previous !== "success" && agent.state === "success") deliveries.push(agent);
     previousStates.set(agent.id, agent.state);
   }
-  announcement.textContent = agents.length ? `${agents.length} agents active. ${activity}.` : "The conference room is ready.";
+  announcement.textContent = agents.length ? `${agents.length} agent${agents.length === 1 ? "" : "s"} active. ${activity}.` : "The conference room is ready.";
   window.requestAnimationFrame(() => {
     rebuildDependencies();
     deliveries.forEach((agent, index) => window.setTimeout(() => deliver(agent), index * 350));
@@ -377,6 +436,7 @@ async function refresh() {
       activeTotal.textContent = "0";
       emptyRoom.hidden = false;
       renderActivityList([]);
+      renderHistoryList([]);
     }
     setConnection("online");
   } catch {
@@ -400,6 +460,11 @@ inspectorClose.addEventListener("click", () => agentInspector.close());
 agentInspector.addEventListener("click", (event) => {
   if (event.target === agentInspector) agentInspector.close();
 });
-agentInspector.addEventListener("close", () => { inspectedAgentId = null; });
+agentInspector.addEventListener("close", () => { inspectedRecord = null; });
+function updateClock() {
+  studioClock.textContent = `LIVE · ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+}
+updateClock();
+window.setInterval(updateClock, 1000);
 refresh();
 setInterval(refresh, 700);
