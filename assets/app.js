@@ -5,6 +5,7 @@ const agentsLayer = document.getElementById("agents-layer");
 const dependencyLayer = document.getElementById("dependency-layer");
 const emptyRoom = document.getElementById("empty-room");
 const project = document.getElementById("project");
+const taskTitle = document.getElementById("task-title");
 const taskState = document.getElementById("task-state");
 const tableActivity = document.getElementById("table-activity");
 const updated = document.getElementById("updated");
@@ -15,6 +16,8 @@ const connectionText = document.getElementById("connection-text");
 const activityList = document.getElementById("activity-list");
 const activeTotal = document.getElementById("active-total");
 const focusToggle = document.getElementById("focus-toggle");
+const taskList = document.getElementById("task-list");
+const taskTotal = document.getElementById("task-total");
 
 const stateLabels = {
   idle: "Ready", thinking: "Thinking", researching: "Researching", coding: "Coding",
@@ -35,6 +38,8 @@ const previousStates = new Map();
 let lastSignature = "";
 let connectionState = "connecting";
 let lastAgents = [];
+let lastSessions = [];
+let selectedSessionId = null;
 
 function hash(text) {
   let value = 0;
@@ -123,6 +128,55 @@ function renderActivityList(agents) {
     return row;
   });
   activityList.replaceChildren(...rows);
+}
+
+function resetRoom() {
+  agentsLayer.replaceChildren();
+  dependencyLayer.replaceChildren();
+  seatById.clear();
+  slotById.clear();
+  previousStates.clear();
+  lastAgents = [];
+  lastSignature = "";
+}
+
+function selectSession(sessionId) {
+  if (selectedSessionId !== sessionId) {
+    selectedSessionId = sessionId;
+    resetRoom();
+  }
+  renderTaskList(lastSessions);
+  const session = lastSessions.find((item) => item.id === selectedSessionId);
+  if (session) render(session);
+}
+
+function renderTaskList(sessions) {
+  taskTotal.textContent = String(sessions.length);
+  if (!sessions.length) {
+    taskList.replaceChildren(element("div", "task-empty", "No active tasks yet"));
+    return;
+  }
+
+  const rows = sessions.map((session) => {
+    const button = element("button", "task-row");
+    button.type = "button";
+    button.dataset.sessionId = session.id;
+    button.classList.toggle("selected", session.id === selectedSessionId);
+    button.setAttribute("aria-pressed", String(session.id === selectedSessionId));
+    const copy = element("span", "task-row-copy");
+    copy.append(
+      element("strong", "", session.title || session.project_label || "Codex task"),
+      element("span", "", `${session.project_label || "Codex"} · ${session.agents.length} agent${session.agents.length === 1 ? "" : "s"}`)
+    );
+    button.append(
+      element("i", session.active ? "task-live" : "task-done"),
+      copy,
+      element("span", "task-state-pill", session.active ? "Live" : "Done")
+    );
+    button.addEventListener("click", () => selectSession(session.id));
+    return button;
+  });
+  taskList.replaceChildren(...rows);
 }
 
 function removeMissingAgents(ids) {
@@ -217,16 +271,17 @@ function deliver(agent) {
 
 function render(state) {
   const agents = Array.isArray(state.agents) ? state.agents : [];
-  const signature = JSON.stringify({ project: state.project_label, active: state.active, agents: agents.map(({ id, label, state: status, activity }) => [id, label, status, activity]) });
+  const signature = JSON.stringify({ id: state.id, title: state.title, project: state.project_label, active: state.active, agents: agents.map(({ id, label, state: status, activity }) => [id, label, status, activity]) });
   updated.textContent = state.updated_at ? `Updated ${new Date(state.updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "No events yet";
   if (signature === lastSignature) return;
   lastSignature = signature;
   lastAgents = agents;
   project.textContent = state.project_label || "Codex task";
+  taskTitle.textContent = state.title || state.project_label || "Codex task";
   const lead = agents.find((agent) => agent.id === "main");
   const activity = lead ? lead.activity : (state.active ? "Task active" : "Ready for work");
   taskState.textContent = activity;
-  tableActivity.textContent = activity;
+  tableActivity.textContent = state.title || activity;
   agentCount.textContent = agents.length ? `${agents.length} agent${agents.length === 1 ? "" : "s"} active` : "Room ready";
   emptyRoom.hidden = agents.length > 0;
   renderActivityList(agents);
@@ -258,7 +313,27 @@ async function refresh() {
   try {
     const response = await fetch("/api/state", { cache: "no-store" });
     if (!response.ok) throw new Error("offline");
-    render(await response.json());
+    const payload = await response.json();
+    lastSessions = Array.isArray(payload.sessions) ? payload.sessions : [];
+    if (!selectedSessionId || !lastSessions.some((item) => item.id === selectedSessionId)) {
+      const preferred = lastSessions.find((item) => item.active) || lastSessions[0];
+      selectedSessionId = preferred ? preferred.id : null;
+      resetRoom();
+    }
+    renderTaskList(lastSessions);
+    const selected = lastSessions.find((item) => item.id === selectedSessionId);
+    if (selected) {
+      render(selected);
+    } else {
+      project.textContent = "Waiting for a Codex task";
+      taskTitle.textContent = "Waiting for a Codex task";
+      taskState.textContent = "Ready for work";
+      tableActivity.textContent = "Ready for work";
+      agentCount.textContent = "Room ready";
+      activeTotal.textContent = "0";
+      emptyRoom.hidden = false;
+      renderActivityList([]);
+    }
     setConnection("online");
   } catch {
     setConnection("offline");

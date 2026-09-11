@@ -76,6 +76,11 @@ h1 { margin: 0; font-size: 14px; line-height: 1.25; font-weight: 650; letter-spa
   min-height: 48px; justify-content: space-between; gap: 12px; padding: 8px 12px;
   border-bottom: 1px solid var(--border-soft); background: var(--surface);
 }
+.current-task { min-width: 0; flex: 1 1 42%; }
+.current-task strong {
+  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px; font-weight: 650;
+}
 .now-block { min-width: 0; gap: 9px; }
 .now-block > div { min-width: 0; }
 .now-block strong {
@@ -218,9 +223,28 @@ h1 { margin: 0; font-size: 14px; line-height: 1.25; font-weight: 650; letter-spa
 
 .activity-panel { min-height: 0; display: flex; flex-direction: column; padding: 12px; }
 .panel-heading { justify-content: space-between; gap: 12px; padding: 2px 2px 10px; }
+.task-heading { padding-bottom: 7px; }
 h2 { margin: 0; font-size: 13px; font-weight: 650; letter-spacing: -.01em; }
 .count-badge { min-width: 22px; height: 22px; display: grid; place-items: center; border-radius: 6px; color: var(--muted); background: var(--surface-soft); font-size: 10px; font-weight: 650; }
 .activity-list { flex: 1; min-height: 120px; overflow: auto; display: flex; flex-direction: column; gap: 5px; padding: 2px 0 10px; }
+.task-list { max-height: 190px; overflow: auto; display: flex; flex-direction: column; gap: 4px; }
+.task-empty { padding: 18px 8px; color: var(--muted); font-size: 10px; text-align: center; }
+.task-row {
+  width: 100%; display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center;
+  gap: 8px; padding: 8px; border: 1px solid transparent; border-radius: 8px;
+  color: var(--ink); background: transparent; text-align: left; cursor: pointer;
+}
+.task-row:hover { background: var(--surface-soft); }
+.task-row.selected { border-color: color-mix(in srgb, var(--accent) 38%, var(--border)); background: color-mix(in srgb, var(--accent) 9%, var(--surface)); }
+.task-live, .task-done { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 12%, transparent); }
+.task-done { background: var(--muted); box-shadow: none; }
+.task-row-copy { min-width: 0; }
+.task-row-copy strong, .task-row-copy > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-row-copy strong { font-size: 10px; font-weight: 650; }
+.task-row-copy > span { margin-top: 2px; color: var(--muted); font-size: 8px; }
+.task-state-pill { color: var(--green); font-size: 8px; font-weight: 650; }
+.task-row:not(.selected) .task-state-pill { color: var(--muted); }
+.panel-divider { height: 1px; margin: 10px 0; background: var(--border-soft); }
 .activity-empty { min-height: 150px; display: grid; place-content: center; justify-items: center; gap: 7px; color: var(--muted); text-align: center; }
 .activity-empty > span { font-size: 23px; opacity: .5; }
 .activity-empty p { max-width: 150px; margin: 0; font-size: 10px; line-height: 1.5; }
@@ -263,7 +287,8 @@ body.focus-mode .activity-panel { display: none; }
 @media (max-width: 820px) {
   .app-shell { padding: 8px; gap: 8px; }
   .content-grid { grid-template-columns: minmax(0, 1fr); }
-  .activity-panel { max-height: 220px; }
+  .activity-panel { max-height: 390px; }
+  .task-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); max-height: 120px; }
   .activity-list { min-height: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
   .activity-empty { min-height: 80px; }
   .privacy-card { display: none; }
@@ -273,6 +298,9 @@ body.focus-mode .activity-panel { display: none; }
   .button-label, .connection span:last-child { display: none; }
   .icon-button, .connection { width: 30px; justify-content: center; padding: 0; }
   .title-copy > span { max-width: 46vw; }
+  .scene-header { align-items: flex-start; flex-wrap: wrap; }
+  .current-task { flex-basis: calc(100% - 86px); }
+  .now-block { order: 3; flex-basis: 100%; }
   .office-stage { min-height: 600px; }
   .room-sign { display: none; }
   .whiteboard { left: 3px; top: 140px; transform: scale(.75); transform-origin: left top; }

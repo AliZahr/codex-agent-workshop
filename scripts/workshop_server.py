@@ -15,14 +15,60 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "assets"
 LOCK = threading.RLock()
-STATE = {
-    "session_id": None,
-    "project_label": "Waiting for a Codex task",
-    "active": False,
-    "updated_at": 0,
-    "agents": {},
-}
+MAX_SESSIONS = 12
+STATE = {"sessions": {}, "updated_at": 0}
 ALLOWED_STATES = {"idle", "thinking", "researching", "coding", "running", "delegating", "waiting", "working", "success", "failure"}
+
+
+def new_session(session_id: str, event: dict, occurred_at: int) -> dict:
+    return {
+        "id": session_id,
+        "title": str(event.get("task_title") or event.get("project_label") or "Codex task")[:84],
+        "has_title": bool(str(event.get("task_title") or "").strip()),
+        "project_label": str(event.get("project_label") or "Codex task")[:80],
+        "active": True,
+        "updated_at": occurred_at,
+        "agents": {},
+        "pending_assignments": [],
+    }
+
+
+def prune_sessions() -> None:
+    sessions = STATE["sessions"]
+    while len(sessions) > MAX_SESSIONS:
+        candidate = min(
+            sessions.values(),
+            key=lambda item: (bool(item["active"]), int(item["updated_at"])),
+        )
+        sessions.pop(candidate["id"], None)
+
+
+def claim_assignment(session: dict, event: dict) -> dict | None:
+    pending = session["pending_assignments"]
+    agent_type = str(event.get("agent_type") or "").lower()
+    for index, assignment in enumerate(pending):
+        expected = str(assignment.get("agent_type") or "").lower()
+        if not expected or expected == agent_type:
+            return pending.pop(index)
+    return pending.pop(0) if pending else None
+
+
+def attach_or_queue_assignment(session: dict, assignment: dict) -> None:
+    expected = str(assignment.get("agent_type") or "").lower()
+    candidates = [
+        agent for agent in session["agents"].values()
+        if agent["id"] != "main"
+        and agent.get("awaiting_assignment")
+        and (not expected or str(agent.get("agent_type") or "").lower() == expected)
+    ]
+    if candidates:
+        agent = max(candidates, key=lambda item: int(item["occurred_at"]))
+        agent["label"] = assignment["task_name"] or agent["label"]
+        agent["activity"] = assignment["detail"]
+        agent["awaiting_assignment"] = False
+        return
+    session["pending_assignments"].append(assignment)
+    session["pending_assignments"] = session["pending_assignments"][-16:]
 
 
 def apply_event(event: dict) -> bool:
@@ -34,38 +80,94 @@ def apply_event(event: dict) -> bool:
     occurred_at = int(event["occurred_at"])
 
     with LOCK:
-        if STATE["session_id"] != session_id and agent_id == "main":
-            STATE.update({
-                "session_id": session_id,
-                "project_label": str(event.get("project_label") or "Codex task")[:80],
-                "active": True,
-                "updated_at": occurred_at,
-                "agents": {},
+        sessions = STATE["sessions"]
+        session = sessions.get(session_id)
+        if session is None:
+            session = new_session(session_id, event, occurred_at)
+            sessions[session_id] = session
+
+        title = str(event.get("task_title") or "").strip()
+        if title and not session["has_title"]:
+            session["title"] = title[:84]
+            session["has_title"] = True
+        project_label = str(event.get("project_label") or "").strip()
+        if project_label:
+            session["project_label"] = project_label[:80]
+
+        assignment = event.get("assignment")
+        if isinstance(assignment, dict):
+            attach_or_queue_assignment(session, {
+                "task_name": str(assignment.get("task_name") or "Specialist agent")[:60],
+                "agent_type": str(assignment.get("agent_type") or "")[:60],
+                "detail": str(assignment.get("detail") or "Working on a delegated task")[:140],
             })
-        if STATE["session_id"] != session_id:
-            return True
+
         if event["kind"] == "end":
             if agent_id == "main":
-                STATE["active"] = False
+                session["active"] = False
             else:
-                STATE["agents"].pop(agent_id, None)
+                session["agents"].pop(agent_id, None)
         else:
-            previous = STATE["agents"].get(agent_id, {})
+            previous = session["agents"].get(agent_id, {})
             if occurred_at >= int(previous.get("occurred_at", 0)):
-                STATE["agents"][agent_id] = {
+                label = str(previous.get("label") or event.get("agent_type") or ("Lead agent" if agent_id == "main" else "Agent"))[:80]
+                activity = str(event["activity"])[:140]
+                claimed = None
+                if agent_id != "main" and event.get("event") == "SubagentStart":
+                    claimed = claim_assignment(session, event)
+                    if claimed:
+                        label = claimed["task_name"] or label
+                        activity = claimed["detail"]
+                session["agents"][agent_id] = {
                     "id": agent_id,
-                    "label": str(event.get("agent_type") or ("Lead agent" if agent_id == "main" else "Agent"))[:80],
+                    "label": label,
                     "state": event["state"],
-                    "activity": str(event["activity"])[:100],
+                    "activity": activity,
                     "occurred_at": occurred_at,
+                    "agent_type": str(event.get("agent_type") or previous.get("agent_type") or "")[:80],
+                    "awaiting_assignment": bool(
+                        agent_id != "main"
+                        and event.get("event") == "SubagentStart"
+                        and claimed is None
+                    ),
                 }
-            STATE["active"] = True
+            session["active"] = True
+
+        session["updated_at"] = max(int(session["updated_at"]), occurred_at)
         STATE["updated_at"] = max(int(STATE["updated_at"]), occurred_at)
+        prune_sessions()
     return True
 
 
+def public_state() -> dict:
+    sessions = []
+    for session in sorted(STATE["sessions"].values(), key=lambda item: int(item["updated_at"]), reverse=True):
+        sessions.append({
+            "id": session["id"],
+            "title": session["title"],
+            "project_label": session["project_label"],
+            "active": session["active"],
+            "updated_at": session["updated_at"],
+            "agents": [
+                {
+                    "id": agent["id"],
+                    "label": agent["label"],
+                    "state": agent["state"],
+                    "activity": agent["activity"],
+                    "occurred_at": agent["occurred_at"],
+                }
+                for agent in session["agents"].values()
+            ],
+        })
+    return {
+        "sessions": sessions,
+        "updated_at": STATE["updated_at"],
+        "server_time": int(time.time() * 1000),
+    }
+
+
 class WorkshopHandler(BaseHTTPRequestHandler):
-    server_version = "AgentWorkshop/0.1"
+    server_version = "AgentWorkshop/0.2"
 
     def log_message(self, fmt: str, *args) -> None:
         return
@@ -87,7 +189,7 @@ class WorkshopHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/state":
             with LOCK:
-                payload = {**STATE, "agents": list(STATE["agents"].values()), "server_time": int(time.time() * 1000)}
+                payload = public_state()
             self._send(200, "application/json; charset=utf-8", json.dumps(payload).encode("utf-8"))
             return
         files = {

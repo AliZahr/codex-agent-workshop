@@ -31,6 +31,10 @@
     <section class="content-grid" aria-label="Live Codex agent activity">
       <section class="workshop" aria-label="Miniature conference room showing Codex agents working together">
         <div class="scene-header">
+          <div class="current-task">
+            <span class="meta-label">TASK</span>
+            <strong id="task-title">Waiting for a Codex task</strong>
+          </div>
           <div class="now-block">
             <span class="now-pulse" aria-hidden="true"></span>
             <div><span class="meta-label">NOW</span><strong id="task-state">Ready for work</strong></div>
@@ -62,6 +66,14 @@
       </section>
 
       <aside class="activity-panel" aria-label="Agent activity">
+        <div class="panel-heading task-heading">
+          <div><span class="meta-label">TASKS</span><h2>Open studios</h2></div>
+          <span id="task-total" class="count-badge">0</span>
+        </div>
+        <div id="task-list" class="task-list">
+          <div class="task-empty">No active tasks yet</div>
+        </div>
+        <div class="panel-divider"></div>
         <div class="panel-heading">
           <div><span class="meta-label">TEAM</span><h2>Live activity</h2></div>
           <span id="active-total" class="count-badge">0</span>
@@ -71,7 +83,7 @@
         </div>
         <div class="privacy-card">
           <span class="privacy-icon" aria-hidden="true">✓</span>
-          <div><strong>Local and private</strong><span>Lifecycle signals only. No prompts, code, or output.</span></div>
+          <div><strong>Local and private</strong><span>Short local summaries only. No commands, code, results, or transcripts.</span></div>
         </div>
       </aside>
     </section>
