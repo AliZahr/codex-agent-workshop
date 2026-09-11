@@ -93,6 +93,23 @@
       <span id="updated">No events yet</span>
     </footer>
   </main>
+
+  <dialog id="agent-inspector" class="agent-inspector" aria-labelledby="inspector-name">
+    <div class="inspector-header">
+      <div>
+        <span class="meta-label">CURRENT ASSIGNMENT</span>
+        <h2 id="inspector-name">Agent details</h2>
+      </div>
+      <button id="inspector-close" class="inspector-close" type="button" aria-label="Close agent details">×</button>
+    </div>
+    <div class="inspector-context">
+      <span id="inspector-state" class="inspector-state">Active</span>
+      <span id="inspector-task">Codex task</span>
+    </div>
+    <p id="inspector-activity" class="inspector-activity">Waiting for activity.</p>
+    <div class="inspector-project"><span>Workspace</span><strong id="inspector-project">Codex</strong></div>
+    <p class="inspector-note">This is the fuller locally sanitized detail received from Codex hooks. Secrets, code blocks, commands, results, transcripts, and full paths stay out of the workshop.</p>
+  </dialog>
   <script src="/app.js"></script>
 </body>
 </html>

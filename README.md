@@ -4,7 +4,7 @@ Agent Workshop is a miniature local conference room for Codex. The lead agent an
 
 The interface is designed as a native-feeling Codex companion: edge-to-edge system styling, a live activity rail, a room focus mode, dark/light appearance support, and responsive layouts for narrow panels.
 
-Concurrent Codex chats are kept as separate studios. Use the task switcher to move between them. Each studio shows a short title derived locally from its first prompt and a concise description of what every agent is doing.
+Concurrent working Codex chats are kept as separate studios. Use the task switcher to move between them; a studio disappears when its turn finishes and returns if that chat starts working again. Each studio shows a short title derived locally from its first prompt. Click a miniature character or an activity row to inspect the fuller, locally sanitized detail of what that agent is doing.
 
 Source: [github.com/AliZahr/codex-agent-workshop](https://github.com/AliZahr/codex-agent-workshop)
 

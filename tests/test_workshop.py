@@ -34,6 +34,18 @@ class HookTests(unittest.TestCase):
         self.assertNotIn("very-secret-token", rendered)
         self.assertNotIn("private output", rendered)
 
+    def test_prompt_activity_keeps_fuller_sanitized_detail(self):
+        prompt = "Investigate the task switcher and explain exactly why completed studios remain visible, then update the UI. " * 2
+        event = hook.normalize({
+            "hook_event_name": "UserPromptSubmit",
+            "session_id": "s1",
+            "cwd": "/tmp/project",
+            "prompt": prompt + " api_key=do-not-show-this",
+        })
+        self.assertGreater(len(event["activity"]), 140)
+        self.assertIn("explain exactly why", event["activity"])
+        self.assertNotIn("do-not-show-this", event["activity"])
+
     def test_tool_classification(self):
         self.assertEqual(hook.classify_tool("Bash")[0], "running")
         self.assertEqual(hook.classify_tool("mcp__docs__search")[0], "researching")
@@ -71,6 +83,7 @@ class StateTests(unittest.TestCase):
     def base_event(self, **overrides):
         event = {
             "session_id": "one",
+            "turn_id": "turn-1",
             "agent_id": "main",
             "agent_type": "Lead",
             "project_label": "Project A",
@@ -153,6 +166,25 @@ class StateTests(unittest.TestCase):
         server.apply_event(self.base_event())
         server.apply_event(self.base_event(session_id="two", occurred_at=5))
         self.assertEqual([item["id"] for item in server.public_state()["sessions"]], ["two", "one"])
+
+    def test_stop_hides_finished_task_and_new_prompt_reactivates_it(self):
+        server.apply_event(self.base_event())
+        server.apply_event(self.base_event(
+            event="Stop", state="success", activity="task complete", occurred_at=2,
+        ))
+        self.assertEqual(server.public_state()["sessions"], [])
+        self.assertIn("one", server.STATE["sessions"])
+
+        server.apply_event(self.base_event(task_title="Follow-up", turn_id="turn-2", occurred_at=3))
+        self.assertEqual([item["id"] for item in server.public_state()["sessions"]], ["one"])
+
+    def test_late_stop_from_previous_turn_does_not_hide_new_work(self):
+        server.apply_event(self.base_event())
+        server.apply_event(self.base_event(turn_id="turn-2", task_title="Follow-up", occurred_at=2))
+        server.apply_event(self.base_event(
+            turn_id="turn-1", event="Stop", state="success", activity="task complete", occurred_at=3,
+        ))
+        self.assertEqual([item["id"] for item in server.public_state()["sessions"]], ["one"])
 
     def test_task_title_stays_on_first_prompt(self):
         server.apply_event(self.base_event(task_title="Original task"))

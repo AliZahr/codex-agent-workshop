@@ -18,6 +18,13 @@ const activeTotal = document.getElementById("active-total");
 const focusToggle = document.getElementById("focus-toggle");
 const taskList = document.getElementById("task-list");
 const taskTotal = document.getElementById("task-total");
+const agentInspector = document.getElementById("agent-inspector");
+const inspectorClose = document.getElementById("inspector-close");
+const inspectorName = document.getElementById("inspector-name");
+const inspectorState = document.getElementById("inspector-state");
+const inspectorTask = document.getElementById("inspector-task");
+const inspectorActivity = document.getElementById("inspector-activity");
+const inspectorProject = document.getElementById("inspector-project");
 
 const stateLabels = {
   idle: "Ready", thinking: "Thinking", researching: "Researching", coding: "Coding",
@@ -40,6 +47,7 @@ let connectionState = "connecting";
 let lastAgents = [];
 let lastSessions = [];
 let selectedSessionId = null;
+let inspectedAgentId = null;
 
 function hash(text) {
   let value = 0;
@@ -73,13 +81,15 @@ function nextSlot(agentId) {
 }
 
 function buildSeat(agent) {
-  const seat = element("article", `agent-seat${agent.id === "main" ? " lead" : ""}`);
+  const seat = element("button", `agent-seat${agent.id === "main" ? " lead" : ""}`);
+  seat.type = "button";
   const slot = nextSlot(agent.id);
   slotById.set(agent.id, slot);
   seat.style.setProperty("--x", slots[slot].x);
   seat.style.setProperty("--y", slots[slot].y);
   seat.style.setProperty("--agent-hue", String(agent.id === "main" ? 230 : 185 + (hash(agent.id) % 115)));
   seat.dataset.agentId = agent.id;
+  seat.addEventListener("click", () => openAgentDetails(agent.id));
 
   const label = element("div", "seat-label");
   label.append(element("strong", "agent-name"), element("span", "agent-status"));
@@ -115,8 +125,12 @@ function renderActivityList(agents) {
   }
 
   const rows = agents.map((agent) => {
-    const row = element("article", "activity-row");
+    const row = element("button", "activity-row");
+    row.type = "button";
     row.dataset.state = agent.state;
+    row.dataset.agentId = agent.id;
+    row.setAttribute("aria-label", `Show details for ${agent.id === "main" ? "Lead agent" : agent.label}`);
+    row.addEventListener("click", () => openAgentDetails(agent.id));
     const dot = element("span", "row-dot");
     dot.setAttribute("aria-hidden", "true");
     const copy = element("div", "row-copy");
@@ -130,6 +144,33 @@ function renderActivityList(agents) {
   activityList.replaceChildren(...rows);
 }
 
+function selectedSession() {
+  return lastSessions.find((item) => item.id === selectedSessionId) || null;
+}
+
+function updateAgentInspector() {
+  if (!inspectedAgentId) return;
+  const session = selectedSession();
+  const agent = session && session.agents.find((item) => item.id === inspectedAgentId);
+  if (!session || !agent) {
+    inspectedAgentId = null;
+    if (agentInspector.open) agentInspector.close();
+    return;
+  }
+  inspectorName.textContent = agent.id === "main" ? "Lead agent" : agent.label;
+  inspectorState.textContent = stateLabels[agent.state] || "Active";
+  inspectorState.dataset.state = agent.state;
+  inspectorTask.textContent = session.title || session.project_label || "Codex task";
+  inspectorActivity.textContent = agent.activity || "Working on the current task.";
+  inspectorProject.textContent = session.project_label || "Codex";
+}
+
+function openAgentDetails(agentId) {
+  inspectedAgentId = agentId;
+  updateAgentInspector();
+  if (!agentInspector.open) agentInspector.showModal();
+}
+
 function resetRoom() {
   agentsLayer.replaceChildren();
   dependencyLayer.replaceChildren();
@@ -138,6 +179,8 @@ function resetRoom() {
   previousStates.clear();
   lastAgents = [];
   lastSignature = "";
+  if (agentInspector.open) agentInspector.close();
+  inspectedAgentId = null;
 }
 
 function selectSession(sessionId) {
@@ -285,6 +328,7 @@ function render(state) {
   agentCount.textContent = agents.length ? `${agents.length} agent${agents.length === 1 ? "" : "s"} active` : "Room ready";
   emptyRoom.hidden = agents.length > 0;
   renderActivityList(agents);
+  updateAgentInspector();
 
   const ids = new Set(agents.map((agent) => agent.id));
   removeMissingAgents(ids);
@@ -352,5 +396,10 @@ focusToggle.addEventListener("click", () => {
   focusToggle.title = focused ? "Show team activity" : "Focus on the room";
   window.requestAnimationFrame(rebuildDependencies);
 });
+inspectorClose.addEventListener("click", () => agentInspector.close());
+agentInspector.addEventListener("click", (event) => {
+  if (event.target === agentInspector) agentInspector.close();
+});
+agentInspector.addEventListener("close", () => { inspectedAgentId = null; });
 refresh();
 setInterval(refresh, 700);

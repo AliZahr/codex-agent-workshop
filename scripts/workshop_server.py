@@ -27,6 +27,7 @@ def new_session(session_id: str, event: dict, occurred_at: int) -> dict:
         "has_title": bool(str(event.get("task_title") or "").strip()),
         "project_label": str(event.get("project_label") or "Codex task")[:80],
         "active": True,
+        "turn_id": str(event.get("turn_id") or "")[:200],
         "updated_at": occurred_at,
         "agents": {},
         "pending_assignments": [],
@@ -99,7 +100,7 @@ def apply_event(event: dict) -> bool:
             attach_or_queue_assignment(session, {
                 "task_name": str(assignment.get("task_name") or "Specialist agent")[:60],
                 "agent_type": str(assignment.get("agent_type") or "")[:60],
-                "detail": str(assignment.get("detail") or "Working on a delegated task")[:140],
+                "detail": str(assignment.get("detail") or "Working on a delegated task")[:500],
             })
 
         if event["kind"] == "end":
@@ -111,7 +112,7 @@ def apply_event(event: dict) -> bool:
             previous = session["agents"].get(agent_id, {})
             if occurred_at >= int(previous.get("occurred_at", 0)):
                 label = str(previous.get("label") or event.get("agent_type") or ("Lead agent" if agent_id == "main" else "Agent"))[:80]
-                activity = str(event["activity"])[:140]
+                activity = str(event["activity"])[:500]
                 claimed = None
                 if agent_id != "main" and event.get("event") == "SubagentStart":
                     claimed = claim_assignment(session, event)
@@ -131,7 +132,16 @@ def apply_event(event: dict) -> bool:
                         and claimed is None
                     ),
                 }
-            session["active"] = True
+            event_name = event.get("event")
+            event_turn_id = str(event.get("turn_id") or "")[:200]
+            if event_name in {"SessionStart", "UserPromptSubmit"}:
+                session["active"] = True
+                if event_name == "UserPromptSubmit" and event_turn_id:
+                    session["turn_id"] = event_turn_id
+            elif event_name == "Stop":
+                current_turn_id = session.get("turn_id") or ""
+                if not current_turn_id or not event_turn_id or event_turn_id == current_turn_id:
+                    session["active"] = False
 
         session["updated_at"] = max(int(session["updated_at"]), occurred_at)
         STATE["updated_at"] = max(int(STATE["updated_at"]), occurred_at)
@@ -141,7 +151,8 @@ def apply_event(event: dict) -> bool:
 
 def public_state() -> dict:
     sessions = []
-    for session in sorted(STATE["sessions"].values(), key=lambda item: int(item["updated_at"]), reverse=True):
+    active_sessions = (session for session in STATE["sessions"].values() if session["active"])
+    for session in sorted(active_sessions, key=lambda item: int(item["updated_at"]), reverse=True):
         sessions.append({
             "id": session["id"],
             "title": session["title"],

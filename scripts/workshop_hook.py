@@ -24,7 +24,7 @@ SECRET_PATTERNS = (
 )
 
 
-def safe_summary(value: object, limit: int = 100) -> str:
+def safe_summary(value: object, limit: int = 500) -> str:
     text = re.sub(r"\x60{3}.*?\x60{3}", " [code] ", str(value or ""), flags=re.DOTALL)
     text = re.sub(r"[\x00-\x1f\x7f]+", " ", text)
     text = re.sub(r"\s+", " ", text).strip(" #*-\"'")
@@ -70,7 +70,7 @@ def tool_activity(name: str, tool_input: object) -> tuple[str, str, dict | None]
     assignment = None
 
     if "spawn_agent" in lowered or lowered == "agent":
-        detail = safe_summary(values.get("message"), 110)
+        detail = safe_summary(values.get("message"), 500)
         task_name = safe_summary(values.get("task_name"), 60)
         assignment = {
             "task_name": task_name or "Specialist agent",
@@ -79,7 +79,7 @@ def tool_activity(name: str, tool_input: object) -> tuple[str, str, dict | None]
         }
         return "delegating", f"Delegating: {assignment['detail']}", assignment
     if lowered in {"bash", "exec_command", "write_stdin"} or "command" in lowered:
-        description = safe_summary(values.get("description"), 110)
+        description = safe_summary(values.get("description"), 500)
         return state, description or generic, None
     if lowered in {"apply_patch", "edit", "write"} or any(x in lowered for x in ("write_file", "edit_file")):
         return state, "Editing project files", None
@@ -118,7 +118,8 @@ def normalize(payload: dict) -> dict:
         state, activity = "idle", "ready"
     elif event_name == "UserPromptSubmit":
         title = task_title(payload, cwd)
-        state, activity = "thinking", f"Starting: {title}"
+        prompt_detail = safe_summary(payload.get("prompt"), 500)
+        state, activity = "thinking", prompt_detail or f"Starting: {title}"
     elif event_name == "PreToolUse":
         state, activity, assignment = tool_activity(
             str(payload.get("tool_name", "")),
@@ -144,6 +145,7 @@ def normalize(payload: dict) -> dict:
         "version": 1,
         "provider": "codex",
         "session_id": session_id,
+        "turn_id": str(payload.get("turn_id") or "")[:200],
         "agent_id": agent_id,
         "agent_type": agent_type[:80],
         "project_label": Path(cwd).name[:80] if cwd else "Codex task",
